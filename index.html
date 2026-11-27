@@ -1053,17 +1053,17 @@ const uid=()=>`adv${Date.now().toString(36)}${Math.random().toString(36).slice(2
 function sample(i){const pool=[
 ['choice','Чему равно 12 × 8?',['84','96','108','92'],1,'','12 × 8 = 96.'],
 ['input','Вычислите: 45 : 5 + 17.',[],0,'26','45 : 5 = 9, затем 9 + 17 = 26.'],
-['oral','Назовите три геометрические фигуры, которые встречаются в новогодних украшениях.',[],0,'','Например: круг, треугольник, ромб.'],
+['boolean','У квадрата четыре равные стороны.',[],0,'','Верно.'],
 ['choice','Какая дробь равна 0,5?',['1/4','2/3','1/2','3/4'],2,'','0,5 = 1/2.'],
 ['input','Вычислите: 15 × 6.',[],0,'90','15 × 6 = 90.'],
-['oral','Придумайте зимнюю задачу на проценты и предложите классу её решить.',[],0,'','Возможны разные ответы.'],
+['free','Придумайте короткое зимнее пожелание для класса.',[],0,'','Возможны разные ответы.'],
 ['choice','Сколько минут в 2 часах 30 минутах?',['120','150','180','230'],1,'','2 × 60 + 30 = 150.'],
 ['input','Вычислите: (24 + 16) : 8.',[],0,'5','(24 + 16) : 8 = 5.'],
-['image','Рассмотрите картинку и расскажите, что на ней изображено.',[],0,'','Обсудите вместе.'],
+['choice','Сколько сантиметров в одном метре?',['10','100','1000','50'],1,'','В одном метре 100 сантиметров.'],
 ['choice','36 подарков разложили в 4 мешка поровну. Сколько подарков в одном?',['8','9','12','16'],1,'','36 : 4 = 9.'],
 ['input','Какое число надо прибавить к 38, чтобы получилось 100?',[],0,'62','100 − 38 = 62.'],
 ['info','Придумайте вместе одно доброе пожелание своему классу.',[],0,'','С праздником!']];
-const x=pool[i%pool.length];return {title:i===11?'Тёплое пожелание':`Зимнее задание № ${i+1}`,kind:x[0],prompt:x[1],choices:x[2].length?x[2]:['Вариант 1','Вариант 2','Вариант 3','Вариант 4'],correctIndex:x[3],correctIndices:[x[3]],accepted:x[4],explanation:x[5],image:x[0]==='image'?REWARD_ART[3]:'',audio:'',points:10,font:'',fontSize:28,textColor:'#483d39',orderItems:'',sortCat1:'Группа 1',sortCat2:'Группа 2',sortItems:'',matchPairs:'',booleanCorrect:true,freeAnswer:'',rewardIndex:i%64,rewardTitle:names[i%64],rewardImage:'',taskBackdrop:'inherit',taskBackdropImage:''};}
+const x=pool[i%pool.length];return {title:i===11?'Тёплое пожелание':`Зимнее задание № ${i+1}`,kind:x[0],prompt:x[1],choices:x[2].length?x[2]:['Вариант 1','Вариант 2','Вариант 3','Вариант 4'],correctIndex:x[3],correctIndices:[x[3]],accepted:x[4],explanation:x[5],image:'',audio:'',points:10,font:'',fontSize:28,textColor:'#483d39',orderItems:'',sortCat1:'Группа 1',sortCat2:'Группа 2',sortItems:'',matchPairs:'',booleanCorrect:true,freeAnswer:'',rewardIndex:i%64,rewardTitle:names[i%64],rewardImage:'',taskBackdrop:'inherit',taskBackdropImage:''};}
 // Новые проекты не содержат скрытых демонстрационных заданий.
 function blankTask(i){
  const t=sample(i);
@@ -1132,7 +1132,6 @@ function taskState(t){
   const a=String(t.matchPairs||'').split(/\r?\n/).map(x=>x.split('|').map(v=>v.trim())).filter(x=>x[0]);
   if(a.length<2||a.some(x=>!x[1]))return incomplete('Добавьте минимум две полные пары.');
  }
- if(kind==='image'&&!t.image)return incomplete('Для задания по картинке загрузите изображение.');
  return ready;
 }
 function taskIsReady(t){return taskState(t).kind==='ready';}
@@ -1194,7 +1193,7 @@ function cleanProject(data){
  p.windowSound=Object.hasOwn(SOUND_NAMES,data.windowSound)?data.windowSound:'wood';p.windowAudio=audioOK(data.windowAudio)?data.windowAudio:'';p.randomizer=data.randomizer===true;p.randomStyle=data.randomStyle==='gift'?'gift':'sack';p.randomSound=Object.hasOwn(SOUND_NAMES,data.randomSound)?data.randomSound:'bells';p.randomAudio=audioOK(data.randomAudio)?data.randomAudio:'';p.defaultTaskBackdrop=/^(preset-[0-5]|custom|none)$/.test(data.defaultTaskBackdrop)?data.defaultTaskBackdrop:'preset-0';p.defaultTaskBackdropImage=imgOK(data.defaultTaskBackdropImage)?data.defaultTaskBackdropImage:'';p.snow=data.snow!==false;p.effects=data.effects!==false;
  if(Array.isArray(data.tasks))p.tasks=Array.from({length:64},(_,i)=>{
   const t=blankTask(i),v=data.tasks[i]||{};
-  t.kind=['choice','multi','boolean','input','order','free','sort','match','oral','image','info'].includes(v.kind)?v.kind:t.kind;t.isDemo=v.isDemo===true;
+  t.kind=['choice','multi','boolean','input','order','free','sort','match','info'].includes(v.kind)?v.kind:(v.kind==='oral'||v.kind==='image'?'free':t.kind);t.isDemo=v.isDemo===true;
   for(const k of ['title','prompt','accepted','explanation','orderItems','sortCat1','sortCat2','sortItems','matchPairs','freeAnswer','font','textColor','rewardTitle']){
    if(typeof v[k]==='string')t[k]=v[k].slice(0,k==='prompt'||k==='explanation'?8000:2000);
   }
@@ -1509,7 +1508,7 @@ function renderInspector(){
  $('#taskPrev').disabled=sel===0;$('#taskNext').disabled=sel===p.count-1;
  $('#taskGrid').innerHTML=Array.from({length:p.count},(_,i)=>`<button type="button" data-select="${i}" class="${i===sel?'selected':''} ${taskIsReady(p.tasks[i])?'':'task-unfilled'}" title="${E(taskState(p.tasks[i]).reason)}">${i+1}</button>`).join('');
  $$('[data-select]',$('#taskGrid')).forEach(b=>b.onclick=()=>selectTask(+b.dataset.select));
- const kindOpts=[['choice','Выбор одного ответа'],['multi','Несколько правильных ответов'],['boolean','Верно / Неверно'],['input','Ввод ответа'],['order','Поставь по порядку'],['free','Свободный ответ'],['sort','Сортировка по 2 группам'],['match','Найди пары'],['oral','Устно / обсуждение'],['image','Задание по картинке'],['info','Информация / поздравление']];
+ const kindOpts=[['choice','Выбор одного ответа'],['multi','Несколько правильных ответов'],['boolean','Верно / Неверно'],['input','Ввод ответа'],['order','Поставь по порядку'],['free','Свободный ответ'],['sort','Сортировка по 2 группам'],['match','Найди пары'],['info','Информация / поздравление']];
  const opts=kindOpts.map(([v,l])=>`<option value="${v}" ${t.kind===v?'selected':''}>${l}</option>`).join('');
  const choiceEditor=['choice','multi'].includes(t.kind)?`<div class="field"><span>Варианты ответов</span><small>${t.kind==='multi'?'Отметьте все правильные галочками.':'Отметьте правильный кружком.'} Можно добавлять и удалять варианты.</small></div><div id="choicesEditor">${t.choices.map((c,j)=>`<div class="choice-editor"><input type="${t.kind==='multi'?'checkbox':'radio'}" name="rightAnswer" data-correct="${j}" ${t.kind==='multi'?t.correctIndices.includes(j)?'checked':'':t.correctIndex===j?'checked':''}><input type="text" data-choice="${j}" value="${E(c)}" aria-label="Вариант ${j+1}"><button class="mini-remove" type="button" data-remove-choice="${j}" title="Удалить вариант" ${t.choices.length<=2?'disabled':''}>×</button></div>`).join('')}</div><button class="btn light slim" id="addChoice" type="button" ${t.choices.length>=8?'disabled':''}>＋ Добавить вариант ответа</button>`:'';
  const multiLine=(k,caption,placeholder,hint='')=>`<label class="field"><span>${caption}</span><textarea rows="4" data-task="${k}" placeholder="${E(placeholder)}">${E(t[k])}</textarea>${hint?`<small>${E(hint)}</small>`:''}</label>`;
@@ -1977,7 +1976,7 @@ function showTask(i){
  if(['choice','multi'].includes(t.kind))body=`<div class="options">${t.choices.map((c,j)=>`<button class="option" data-answer="${j}" type="button"><span class="option-marker">${t.kind==='multi'?'□':'◯'}</span> ${mathText(c)||'Вариант '+(j+1)}</button>`).join('')}</div>`;
  else if(t.kind==='boolean')body=`<div class="options"><button type="button" data-bool="true" class="option">✓ Верно</button><button type="button" data-bool="false" class="option">✕ Неверно</button></div>`;
  else if(t.kind==='input')body='<input class="answer-input" id="studentAnswer" type="text" autocomplete="off" placeholder="Введите ответ класса">';
- else if(t.kind==='free')body='<textarea class="answer-input" id="studentFree" rows="3" placeholder="Введите ответ или обсудите устно"></textarea><p class="hint">Свободный ответ оценивает учитель.</p>';
+ else if(t.kind==='free')body='<textarea class="answer-input" id="studentFree" rows="3" placeholder="Введите развёрнутый ответ"></textarea><p class="hint">Свободный ответ оценивает учитель.</p>';
  else if(t.kind==='order'){
   const items=t.orderItems.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const shuffle=items.map((v,j)=>({v,j})).sort((a,b)=>((a.j*19+i*17)%17)-((b.j*19+i*17)%17));
@@ -2183,7 +2182,7 @@ const V8_IMPORT_ALIASES = {
  'free':'free','свободный':'free','свободный ответ':'free',
  'sort':'sort','сортировка':'sort',
  'match':'match','пары':'match','пара':'match','найди пару':'match','найти пару':'match','соответствие':'match','соответствия':'match',
- 'oral':'oral','устно':'oral','обсуждение':'oral', 'info':'info','информация':'info','поздравление':'info'
+ 'oral':'free','устно':'free','обсуждение':'free', 'image':'free','задание по картинке':'free','по картинке':'free', 'info':'info','информация':'info','поздравление':'info'
 };
 function v8Type(v){let k=String(v||'').trim().replace(/^\[|\]$/g,'').toLowerCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ');return V8_IMPORT_ALIASES[k]||'';}
 function v8SplitLine(line){let src=String(line||'');if(!src.includes('|')&&src.includes('\t'))return src.split('\t').map(x=>x.trim());let cells=[],buf='';for(let i=0;i<src.length;i++){if(src[i]==='\\'&&src[i+1]==='|'){buf+='|';i++;continue;}if(src[i]==='|'){cells.push(buf.trim());buf='';continue;}buf+=src[i];}cells.push(buf.trim());return cells;}
@@ -2218,12 +2217,12 @@ function v8ParseLine(line,rowNumber){
  return{task:out};
 }
 function v8ImportedJSON(raw){let j;try{j=JSON.parse(raw)}catch{return null;}let a=Array.isArray(j)?j:(Array.isArray(j?.tasks)?j.tasks:Array.isArray(j?.questions)?j.questions:Array.isArray(j?.config?.tasks)?j.config.tasks:null);if(!a)return null;
- return a.map((q,i)=>{if(typeof q!=='object'||q===null)return {error:'элемент не является объектом',row:i+1};if(q.prompt&&q.kind)return {task:{...q,kind:V8_IMPORT_ALIASES[q.kind]||q.kind},row:i+1};let type=V8_IMPORT_ALIASES[q.type]||q.type||'choice';let o={kind:type,prompt:q.question||q.prompt||'',explanation:q.explanation||'',points:q.points};if(!o.prompt)return{error:'отсутствует вопрос',row:i+1};if(['choice','multi'].includes(type)){o.choices=q.answers||q.choices||[];o.correctIndices=Array.isArray(q.correct)?q.correct:[Number(q.correct)||0];o.correctIndex=o.correctIndices[0]||0;}if(type==='input'){o.accepted=Array.isArray(q.accepts)?q.accepts.join('; '):String(q.accepted??q.correct??'');}if(type==='boolean')o.booleanCorrect=q.booleanCorrect??q.correct??true;if(type==='order')o.orderItems=Array.isArray(q.orderItems)?q.orderItems.join('\n'):(q.orderItems||'');if(type==='free')o.freeAnswer=q.freeAnswer||'';if(type==='sort'){o.sortCat1=q.sortCategories?.[0]||'Группа 1';o.sortCat2=q.sortCategories?.[1]||'Группа 2';o.sortItems=(q.sortItems||[]).map(x=>x.text+' | '+(x.category+1)).join('\n');}if(type==='match')o.matchPairs=(q.matchPairs||[]).map(x=>x.left+' | '+x.right).join('\n');return {task:o,row:i+1};});
+ return a.map((q,i)=>{if(typeof q!=='object'||q===null)return {error:'элемент не является объектом',row:i+1};if(q.prompt&&q.kind)return {task:{...q,kind:V8_IMPORT_ALIASES[String(q.kind).toLowerCase()]||q.kind},row:i+1};let type=V8_IMPORT_ALIASES[String(q.type||'').toLowerCase()]||q.type||'choice';let o={kind:type,prompt:q.question||q.prompt||'',explanation:q.explanation||'',points:q.points};if(!o.prompt)return{error:'отсутствует вопрос',row:i+1};if(['choice','multi'].includes(type)){o.choices=q.answers||q.choices||[];o.correctIndices=Array.isArray(q.correct)?q.correct:[Number(q.correct)||0];o.correctIndex=o.correctIndices[0]||0;}if(type==='input'){o.accepted=Array.isArray(q.accepts)?q.accepts.join('; '):String(q.accepted??q.correct??'');}if(type==='boolean')o.booleanCorrect=q.booleanCorrect??q.correct??true;if(type==='order')o.orderItems=Array.isArray(q.orderItems)?q.orderItems.join('\n'):(q.orderItems||'');if(type==='free')o.freeAnswer=q.freeAnswer||'';if(type==='sort'){o.sortCat1=q.sortCategories?.[0]||'Группа 1';o.sortCat2=q.sortCategories?.[1]||'Группа 2';o.sortItems=(q.sortItems||[]).map(x=>x.text+' | '+(x.category+1)).join('\n');}if(type==='match')o.matchPairs=(q.matchPairs||[]).map(x=>x.left+' | '+x.right).join('\n');return {task:o,row:i+1};});
 }
 function v8Analyze(raw){let text=String(raw||'').trim();if(!text)return{list:[],issues:[],total:0};let parsed=text.startsWith('{')||text.startsWith('[')?v8ImportedJSON(text):null;let list=[],issues=[],total=0;if(parsed){total=parsed.length;for(let it of parsed){if(it.error)issues.push({row:it.row,message:it.error});else list.push({task:it.task,row:it.row});}return{list,issues,total,format:'json'};}
  const lines=text.split(/\r?\n/).map((text,i)=>({text:text.trim(),row:i+1})).filter(x=>x.text);total=lines.length;for(let l of lines){let r=v8ParseLine(l.text,l.row);if(r.error)issues.push({row:l.row,message:r.error});else list.push({row:l.row,task:r.task});}return{list,issues,total,format:'lines'};
 }
-function v8MergeTask(index,incoming){let old=p.tasks[index]||blankTask(index);let n={...old,...incoming,isDemo:false,title:old.title||`Задание № ${index+1}`};
+function v8MergeTask(index,incoming){let old=p.tasks[index]||blankTask(index);let n={...old,...incoming,isDemo:false,title:old.title||`Задание № ${index+1}`};if(n.kind==='oral'||n.kind==='image')n.kind='free';
  // Retain reward and card design on existing slot; importing questions must not erase decorations.
  for(let key of ['rewardIndex','rewardTitle','rewardImage','taskBackdrop','taskBackdropImage','font','fontSize','textColor','image','audio'])n[key]=old[key];
  n.title=`Задание № ${index+1}`;
