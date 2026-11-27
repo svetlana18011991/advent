@@ -2326,14 +2326,87 @@ const V8_PROMPT_SOURCE=String.raw`Ты создаёшь задания для о
 Проверяй LaTeX и корректность каждого правильного ответа до выдачи списка.
 Следи, чтобы задания соответствовали возрасту, не повторялись, каждый правильный ответ был проверен. Не более восьми вариантов ответа на вопрос.`;
 async function v8Copy(text){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return true;}}catch(e){}try{let el=$('#v8PromptResult');el.focus();el.select();return document.execCommand('copy');}catch(e){return false;}}
-function showPromptV8(){let prevInput=$('#v8BulkText')?.value||'';let body=`<div class="dialog-head"><h2>✨ Промпт для нейросети</h2><button id="v8Close" class="dialog-close" aria-label="Закрыть">×</button></div><div class="dialog-body"><div class="v8-intro">Как создать список: <b>1.</b> Задайте тему и возраст → <b>2.</b> Скопируйте готовый запрос → <b>3.</b> Пришлите его нейросети → <b>4.</b> Вставьте полученный список в «Импорт вопросов».</div>
+const V8_PROMPT_UI_STATE={topic:'',grade:'',qty:null,kinds:null,wishes:'',manualText:'',manualEdited:false};
+function showPromptV8(){let prevInput=$('#v8BulkText')?.value||'';let body=`<div class="dialog-head"><h2>✨ Промпт для нейросети</h2><button id="v8Close" class="dialog-close" aria-label="Закрыть">×</button></div><div class="dialog-body"><div class="v8-intro">Как создать список: <b>1.</b> Задайте тему и класс — запрос обновляется сразу → <b>2.</b> Скопируйте готовый запрос → <b>3.</b> Пришлите его нейросети → <b>4.</b> Вставьте полученный список в «Импорт вопросов».</div>
  <div class="v8-field-row"><label class="v8-field">Тема заданий<input type="text" id="v8Topic" placeholder="Например, математика: дроби и проценты" value=""></label><label class="v8-field">Количество заданий<input id="v8Qty" type="number" min="1" max="64" value="${p.count}"></label></div>
  <label class="v8-field">Класс / возраст<input id="v8Grade" type="text" placeholder="Например, 5 класс"></label>
  <div class="v8-field" style="margin:12px 0 4px"><span>Какие типы включить</span><div class="v8-chip-list">${['Выбор ответа','Ввод ответа','Верно/неверно','Несколько правильных','Порядок','Сортировка','Пары','Свободный ответ'].map((x,i)=>`<label><input type="checkbox" data-v8-kind="${E(x)}" ${i<4?'checked':''}> ${E(x)}</label>`).join('')}</div></div>
+ <label class="v8-field" style="margin:12px 0 10px">Ваши пожелания к заданиям <small>Необязательно. Можно указать уровень сложности, виды задач, ограничения и другие требования.</small><textarea id="v8Wishes" rows="3" style="min-height:94px" placeholder="Например: 3 уровня сложности; только положительные числа; 3 задачи из жизни; без громоздких вычислений."></textarea></label>
  <label class="v8-field">Готовый запрос — можно изменить перед копированием<textarea id="v8PromptResult" rows="13" spellcheck="false"></textarea></label><p class="v8-prompt-tip">Формулы запрашиваются в LaTeX: двухэтажные дроби, корни и степени. Текст копируется, но не отправляется в нейросеть автоматически.</p></div><div class="v8-actions"><button class="btn light" id="v8BackToImport" type="button">📥 К импорту вопросов</button><button class="btn light" id="v8Regenerate" type="button">↻ Обновить текст</button><button class="btn v8-primary" id="v8Copy" type="button">📋 Скопировать запрос</button></div>`;
- v8Dialog(body);let generate=()=>{let topic=$('#v8Topic').value.trim()||'[ВПИШИ ТЕМУ]',grade=$('#v8Grade').value.trim()||'[ВПИШИ ИЛИ УДАЛИ ЭТУ СТРОКУ]',qty=Math.max(1,Math.min(64,+$('#v8Qty').value||p.count));let types=$$('[data-v8-kind]:checked').map(e=>e.dataset.v8Kind).join(', ')||'[ВЫБЕРИ ТИПЫ]';$('#v8PromptResult').value=V8_PROMPT_SOURCE.replace('[ВПИШИ ТЕМУ]',topic).replace('[ВПИШИ КОЛИЧЕСТВО]',String(qty)).replace('[ВПИШИ ИЛИ УДАЛИ ЭТУ СТРОКУ]',grade).replace('[НАПРИМЕР: выбор ответа, ввод ответа, верно/неверно, порядок, сортировка, пары]',types);};
- $('#v8Regenerate').onclick=generate;$('#v8BackToImport').onclick=showBulkImportV8;$('#v8Copy').onclick=async()=>{let ok=await v8Copy($('#v8PromptResult').value);if(ok){toast('Промпт скопирован! Вставьте его в нейросеть.');$('#v8Copy').textContent='✓ Скопировано';}else{toast('Выделите текст и нажмите Ctrl+C');$('#v8PromptResult').focus();$('#v8PromptResult').select();}};
- generate();
+  v8Dialog(body);
+  // Retain prompt-form settings if the teacher temporarily closes the dialog.
+  const draft=V8_PROMPT_UI_STATE;
+  $('#v8Topic').value=draft.topic;
+  $('#v8Grade').value=draft.grade;
+  $('#v8Wishes').value=draft.wishes;
+  if(draft.qty!==null)$('#v8Qty').value=draft.qty;
+  if(draft.kinds!==null)$$('[data-v8-kind]').forEach(e=>e.checked=draft.kinds.includes(e.dataset.v8Kind));
+  let promptWasEdited=draft.manualEdited;
+  if(promptWasEdited)$('#v8PromptResult').value=draft.manualText;
+
+  const promptFields=()=>({
+    topic:$('#v8Topic').value.trim()||'[ВПИШИ ТЕМУ]',
+    grade:$('#v8Grade').value.trim()||'[ВПИШИ ИЛИ УДАЛИ ЭТУ СТРОКУ]',
+    qty:String(Math.max(1,Math.min(64,+$('#v8Qty').value||p.count))),
+    types:$$('[data-v8-kind]:checked').map(e=>e.dataset.v8Kind).join(', ')||'[ВЫБЕРИ ТИПЫ]',
+    wishes:$('#v8Wishes').value.trim()
+  });
+  const initialPrompt=v=>V8_PROMPT_SOURCE
+    .replace('[ВПИШИ ТЕМУ]',v.topic)
+    .replace('[ВПИШИ КОЛИЧЕСТВО]',v.qty)
+    .replace('[ВПИШИ ИЛИ УДАЛИ ЭТУ СТРОКУ]',v.grade)
+    .replace('[НАПРИМЕР: выбор ответа, ввод ответа, верно/неверно, порядок, сортировка, пары]',v.types);
+  const updatePromptHeader=(content,v)=>{
+    const rows=content.split('\n');
+    const config=[['Тема',v.topic],['Количество заданий',v.qty],['Класс / возраст',v.grade],['Нужные типы заданий',v.types]];
+    for(const [label,value] of config){
+      const position=rows.findIndex(line=>line.startsWith(label+':'));
+      if(position>=0)rows[position]=label+': '+value;
+      else rows.unshift(label+': '+value);
+    }
+    return rows.join('\n');
+  };
+  // The dedicated wishes block is kept separate from manually edited text.
+  // It is re-inserted at a stable place before the import instructions, so
+  // changing a field never discards teacher's manually added prompt details.
+  const wishesHeading='Дополнительные пожелания к заданиям:';
+  const instructions='Верни ТОЛЬКО готовые строки для импорта в редактор.';
+  const updateWishes=(text,wishes)=>{
+    const start=text.indexOf('\n\n'+wishesHeading+'\n');
+    const after=start>=0?text.indexOf('\n\n'+instructions,start): -1;
+    if(start>=0&&after>=0)text=text.slice(0,start)+text.slice(after);
+    if(!wishes)return text;
+    const insertAt=text.indexOf('\n\n'+instructions);
+    const block='\n\n'+wishesHeading+'\n'+wishes;
+    return insertAt>=0?text.slice(0,insertAt)+block+text.slice(insertAt):text+block;
+  };
+  const saveDraft=()=>{
+    draft.topic=$('#v8Topic').value;
+    draft.grade=$('#v8Grade').value;
+    draft.qty=$('#v8Qty').value;
+    draft.kinds=$$('[data-v8-kind]:checked').map(e=>e.dataset.v8Kind);
+    draft.wishes=$('#v8Wishes').value;
+    draft.manualEdited=promptWasEdited;
+    draft.manualText=promptWasEdited?$('#v8PromptResult').value:'';
+  };
+  const generate=()=>{
+    const v=promptFields(),area=$('#v8PromptResult');
+    const base=promptWasEdited?updatePromptHeader(area.value,v):initialPrompt(v);
+    area.value=updateWishes(base,v.wishes);
+    saveDraft();
+  };
+  $('#v8PromptResult').addEventListener('input',()=>{promptWasEdited=true;saveDraft();});
+  ['#v8Topic','#v8Grade','#v8Qty','#v8Wishes'].forEach(id=>$(id).addEventListener('input',generate));
+  $$('[data-v8-kind]').forEach(el=>el.addEventListener('change',generate));
+  $('#v8Regenerate').onclick=()=>{promptWasEdited=false;generate();};
+  $('#v8BackToImport').onclick=()=>{saveDraft();showBulkImportV8();};
+  $('#v8Copy').onclick=async()=>{
+    generate();
+    let ok=await v8Copy($('#v8PromptResult').value);
+    if(ok){toast('Промпт скопирован! Вставьте его в нейросеть.');$('#v8Copy').textContent='✓ Скопировано';}
+    else{toast('Выделите текст и нажмите Ctrl+C');$('#v8PromptResult').focus();$('#v8PromptResult').select();}
+  };
+  generate();
 }
 async function v8ApplyVisualToAll(){if(!await cozyConfirm(`Скопировать оформление задания № ${sel+1} (шрифт, размер, цвет и подложку) на остальные ${p.count-1} заданий? Тексты и ответы сохранятся.`))return;let t=p.tasks[sel];for(let i=0;i<p.count;i++){if(i===sel)continue;for(let key of ['font','fontSize','textColor','taskBackdrop','taskBackdropImage'])p.tasks[i][key]=t[key];}persist();renderInspector();toast('Оформление применено ко всем заданиям.');}
 
