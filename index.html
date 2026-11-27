@@ -803,6 +803,13 @@ body{background:linear-gradient(120deg,#eef5f5,#f4f6fa 58%,#fcf7ef)}
 .cozy-task-dialog .match-pair-chip b{color:#417c5a;}
 .cozy-task-dialog .sort-selection{grid-column:1/-1;display:block;margin:0;color:#856c55;font-size:12px;}
 .cozy-task-dialog .sort-selection.chosen{color:#287b4e;font-weight:750;}
+
+/* Custom dialogs: prevent browser-origin labels from appearing for application confirmations. */
+.cozy-confirm-overlay{position:fixed;inset:0;z-index:2147483640;background:rgba(18,37,56,.64);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;backdrop-filter:blur(5px)}
+.cozy-confirm-panel{width:min(460px,calc(100vw - 32px));max-height:min(85vh,650px);overflow:auto;box-sizing:border-box;border:2px solid #e7c698;border-radius:23px;background:linear-gradient(155deg,#fffaf0,#fff1db);box-shadow:0 20px 70px #172b4299;padding:28px 26px 22px;color:#51402e;font-family:inherit}
+.cozy-confirm-panel h2{margin:0 0 13px;color:#6f3d24;font-size:22px;line-height:1.3}.cozy-confirm-message{white-space:pre-line;line-height:1.55;font-size:15px;max-height:48vh;overflow:auto}.cozy-confirm-input{width:100%;box-sizing:border-box;margin-top:14px;border:1px solid #d4b488;border-radius:12px;padding:12px;font:inherit;background:#fff;color:#44372b}.cozy-confirm-buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+.cozy-confirm-buttons button{cursor:pointer;font:700 14px inherit;border-radius:11px;padding:11px 22px;border:1px solid #ddb98d;background:#fff8ed;color:#744527}.cozy-confirm-buttons .cozy-confirm-primary{background:#167764;color:white;border-color:#167764}
+.cozy-confirm-buttons button:focus-visible,.cozy-confirm-input:focus-visible{outline:3px solid #dba74f;outline-offset:2px}
 </style><style id="offline-latex-v82">.math-scripted{display:inline-flex;vertical-align:middle;align-items:flex-start;white-space:nowrap}.math-scripts{display:inline-flex;flex-direction:column;line-height:1;vertical-align:top;margin-left:.02em}.math-scripts sup,.math-scripts sub{font-size:.63em;position:static;line-height:1.08}.math-overline{display:inline-block;border-top:2px solid currentColor;padding:0 .1em}.math-root{position:relative;white-space:nowrap}.math-root-index{position:absolute;font-size:.5em;left:-.45em;top:-.4em}.math-frac{white-space:nowrap}.question .math-frac,.option .math-frac{font-family:inherit}.question,.option,#answerReveal{overflow-wrap:anywhere}
 /* v9.1: scratchpad and transportable player progress */
 .scratch-launch-area{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
@@ -1092,10 +1099,10 @@ function fillEmptySamples(){
  if(!count){toast('Пустых окошек нет. Ваши задания не изменены.');return;}
  persist();renderEditor();toast(`Добавлено ${count} пробных заданий. Свои задачи сохранены.`);
 }
-function removeOnlySamples(){
+async function removeOnlySamples(){
  const indices=p.tasks.map((t,i)=>isDemoTask(t,i)?i:-1).filter(i=>i>=0);
  if(!indices.length){toast('Пробных заданий не найдено. Ваши задачи не затронуты.');return;}
- if(!confirm(`Удалить пробные задания (${indices.length} шт.)?\nВаши собственные задачи, домики и оформление останутся.`))return;
+ if(!await cozyConfirm(`Удалить пробные задания (${indices.length} шт.)?\nВаши собственные задачи, домики и оформление останутся.`))return;
  const set=new Set(indices);
  p.tasks=p.tasks.map((t,i)=>set.has(i)?{...styledTask(t,blankTask(i)),isDemo:false}:t);
  for(const i of set)done.delete(i);
@@ -1103,8 +1110,8 @@ function removeOnlySamples(){
  savePending();storeProgress();persist();renderEditor();
  toast(`Удалено ${indices.length} пробных заданий. Собственные сохранены.`);
 }
-function clearAllTaskContent(){
- if(!confirm(`Очистить все задания текущего календаря (${p.count} шт.)?\nЭто удалит и собственные вопросы, и примеры.\nДомики, подложки, награды и скрытые задания сверх текущего количества сохранятся.`))return;
+async function clearAllTaskContent(){
+ if(!await cozyConfirm(`Очистить все задания текущего календаря (${p.count} шт.)?\nЭто удалит и собственные вопросы, и примеры.\nДомики, подложки, награды и скрытые задания сверх текущего количества сохранятся.`))return;
  p.tasks=p.tasks.map((t,i)=>i<p.count?{...styledTask(t,blankTask(i)),isDemo:false}:t);
  done.clear();pendingPick=-1;savePending();storeProgress();persist();renderEditor();
  toast('Все задания очищены. Оформление сохранено.');
@@ -1229,6 +1236,32 @@ const pageOfWindow=i=>Math.floor(Math.max(0,i)/houseSlots());
 const totalPages=()=>Math.ceil(p.count/houseSlots());
 const onPage=page=>Array.from({length:Math.min(houseSlots(),Math.max(0,p.count-page*houseSlots()))},(_,j)=>page*houseSlots()+j);
 const pageWindowDescription=page=>{const from=page*houseSlots()+1;const to=Math.min(p.count,(page+1)*houseSlots());return `Домик ${page+1}: окошки № ${from}–${to} (${Math.max(0,to-from+1)} шт.)`;};
+
+/** Native window.confirm/prompt are intentionally not used: browsers show the iframe origin. */
+function cozyDialog(message,options={}){
+  return new Promise(resolve=>{
+    const previous=document.activeElement;
+    const overlay=document.createElement('div');overlay.className='cozy-confirm-overlay';
+    overlay.setAttribute('role','presentation');
+    const panel=document.createElement('div');panel.className='cozy-confirm-panel';
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',options.input?'Имя для календаря':'Подтверждение действия');
+    const title=document.createElement('h2');title.textContent=options.input?'🎄 Сохранить календарь':'❄️ Подтвердите действие';panel.append(title);
+    const detail=document.createElement('div');detail.className='cozy-confirm-message';detail.textContent=String(message);panel.append(detail);
+    let field=null;
+    if(options.input){field=document.createElement('input');field.className='cozy-confirm-input';field.type='text';field.maxLength=100;field.value=String(options.defaultValue||'');field.setAttribute('aria-label','Имя ученика или класса (необязательно)');field.placeholder='Имя ученика или название класса';panel.append(field);}
+    const actions=document.createElement('div');actions.className='cozy-confirm-buttons';
+    const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Отмена';
+    const ok=document.createElement('button');ok.type='button';ok.className='cozy-confirm-primary';ok.textContent=options.input?'Продолжить':'Подтвердить';
+    actions.append(cancel,ok);panel.append(actions);overlay.append(panel);document.body.append(overlay);
+    function finish(value){overlay.removeEventListener('keydown',onKey);overlay.remove();if(previous&&previous.isConnected&&typeof previous.focus==='function')previous.focus();resolve(value);}
+    function onKey(e){if(e.key==='Escape'){e.preventDefault();finish(options.input?null:false);}if(e.key==='Tab'){const nodes=field?[field,cancel,ok]:[cancel,ok];const idx=nodes.indexOf(document.activeElement);if(e.shiftKey&&idx===0){e.preventDefault();nodes[nodes.length-1].focus();}else if(!e.shiftKey&&idx===nodes.length-1){e.preventDefault();nodes[0].focus();}}if(e.key==='Enter'&&field&&document.activeElement===field){e.preventDefault();finish(field.value);}}
+    overlay.addEventListener('keydown',onKey);cancel.addEventListener('click',()=>finish(options.input?null:false));ok.addEventListener('click',()=>finish(options.input?field.value:true));
+    overlay.addEventListener('click',e=>{if(e.target===overlay)finish(options.input?null:false);});
+    (field||cancel).focus();
+  });
+}
+function cozyConfirm(message){return cozyDialog(message);}
+function cozyPrompt(message,defaultValue=''){return cozyDialog(message,{input:true,defaultValue});}
 function toast(msg){$('#toastHost').innerHTML=`<div class="toast">${E(msg)}</div>`;clearTimeout(toast.timer);toast.timer=setTimeout(()=>{$('#toastHost').innerHTML='';},3300);}
 function persist(){if(standalone)return;try{localStorage.setItem(STORAGE_PROJECT,JSON.stringify(p));$('#saveStatus').textContent='✓ Автоматически сохранено в этом браузере';}catch(e){$('#saveStatus').textContent='⚠ Не удалось автосохранить. Используйте «Сохранить проект».';}refreshFillIndicators();}
 function progressKey(){return STORAGE_PROGRESS+p.id;}
@@ -1494,8 +1527,8 @@ function bindEditorWindows(){
  });
 }
 
-function resetEditorPageLayout(){
- if(!confirm('Вернуть автоматическую расстановку окошек на этом домике? Остальные домики не изменятся.'))return;
+async function resetEditorPageLayout(){
+ if(!await cozyConfirm('Вернуть автоматическую расстановку окошек на этом домике? Остальные домики не изменятся.'))return;
  const all=currentPositions();onPage(editorPage).forEach(i=>delete all[i]);persist();renderEditor();toast('Окошки на этом домике расставлены автоматически.');
 }
 
@@ -1564,7 +1597,7 @@ function renderInspector(){
  $('#previewBackdrop').onclick=previewSelectedTask;
  $('#uploadTaskBackdrop').onchange=async e=>imageUpload(e.target,im=>{t.taskBackdropImage=im;t.taskBackdrop='custom';persist();renderInspector();});const bdDrop=$('#uploadTaskBackdrop').closest('.custom-upload');bdDrop.addEventListener('dragover',e=>{e.preventDefault();bdDrop.classList.add('dragging');});bdDrop.addEventListener('dragleave',e=>{bdDrop.classList.remove('dragging');});bdDrop.addEventListener('drop',e=>{e.preventDefault();bdDrop.classList.remove('dragging');imageUpload({files:e.dataTransfer.files,value:''},im=>{t.taskBackdropImage=im;t.taskBackdrop='custom';persist();renderInspector();});});
  $('#clearTaskBackdrop')?.addEventListener('click',()=>{t.taskBackdrop='inherit';t.taskBackdropImage='';persist();renderInspector();});
- $('#applyTaskBackdropAll').onclick=()=>{if(!confirm('Применить эту подложку ко всем заданиям? Ранее выбранные индивидуальные подложки будут заменены.'))return;let key=t.taskBackdrop==='inherit'?p.defaultTaskBackdrop:t.taskBackdrop;let own=t.taskBackdrop==='inherit'?p.defaultTaskBackdropImage:t.taskBackdropImage;p.defaultTaskBackdrop=key;p.defaultTaskBackdropImage=key==='custom'?own:'';p.tasks.forEach(task=>{task.taskBackdrop='inherit';task.taskBackdropImage='';});persist();renderEditor();toast('Подложка применена ко всем заданиям.');};
+ $('#applyTaskBackdropAll').onclick=async()=>{if(!await cozyConfirm('Применить эту подложку ко всем заданиям? Ранее выбранные индивидуальные подложки будут заменены.'))return;let key=t.taskBackdrop==='inherit'?p.defaultTaskBackdrop:t.taskBackdrop;let own=t.taskBackdrop==='inherit'?p.defaultTaskBackdropImage:t.taskBackdropImage;p.defaultTaskBackdrop=key;p.defaultTaskBackdropImage=key==='custom'?own:'';p.tasks.forEach(task=>{task.taskBackdrop='inherit';task.taskBackdropImage='';});persist();renderEditor();toast('Подложка применена ко всем заданиям.');};
  $$('[data-task]',host).forEach(el=>{const k=el.dataset.task;
   el.addEventListener(['SELECT'].includes(el.tagName)||['rewardTitle','font','fontSize','points','textColor','booleanCorrect'].includes(k)?'change':'input',()=>{
    if(k==='rewardIndex'){t.rewardIndex=Number(el.value);t.rewardImage='';t.rewardTitle=names[t.rewardIndex];}
@@ -1795,7 +1828,7 @@ function bindEditor(){
  $('#runPlayer').onclick=()=>beginPlayer(false);$('#testSelected').onclick=previewSelectedTask;$('#showPreviewReward').onclick=()=>{done=readProgress();showRewardCollection();};
  $('#importQuestions').onclick=showBulkImportV8;$('#v8ImportTop').onclick=showBulkImportV8;$('#v8AITop').onclick=showPromptV8;$('#v8AILeft').onclick=showPromptV8;$('#v8ApplyVisual').onclick=v8ApplyVisualToAll;
  $('#fillDemo').onclick=fillEmptySamples;$('#clearTasks').onclick=clearAllTaskContent;$('#fillEmptyDemoTop').onclick=fillEmptySamples;$('#clearDemoTop').onclick=removeOnlySamples;$('#clearAllTop').onclick=clearAllTaskContent;
- $('#newProject').onclick=()=>{stopBackgroundMusic();if(confirm('Создать новый календарь? Текущий проект лучше заранее сохранить в JSON.')){p=createProject();sel=0;editorPage=0;done=new Set();pendingPick=-1;persist();renderEditor();toast('Создан новый календарь.');}};
+ $('#newProject').onclick=async()=>{stopBackgroundMusic();if(await cozyConfirm('Создать новый календарь? Текущий проект лучше заранее сохранить в JSON.')){p=createProject();sel=0;editorPage=0;done=new Set();pendingPick=-1;persist();renderEditor();toast('Создан новый календарь.');}};
  $('#saveProject').onclick=()=>downloadFile(JSON.stringify(p,null,2),'advent_project.json','application/json');$('#exportHTML').onclick=exportPlayer;
  $('#loadProject').onclick=()=>$('#jsonImport').click();$('#jsonImport').onchange=async ev=>{try{stopBackgroundMusic();let x=JSON.parse(await ev.target.files[0].text());p=cleanProject(x);done=readProgress();pendingPick=readPending();sel=0;editorPage=0;persist();renderEditor();toast('Проект загружен.');}catch(e){toast('Ошибка проекта: '+e.message);}finally{ev.target.value='';}};
  $('#downloadProgressEditor').onclick=downloadProgress;$('#uploadProgressEditor').onclick=()=>$('#progressImport').click();$('#progressImport').onchange=importProgressFile;
@@ -1820,12 +1853,12 @@ function showQuestionImport(){dialog='import';$('#modalHost').innerHTML=`<div cl
 }
 function downloadFile(str,name,type='application/octet-stream'){let b=new Blob([str],{type}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1800);}
 function downloadProgress(){let state={pendingPick:pendingPick,format:'cozy-advent-progress-v1',projectId:p.id,projectTitle:p.title,completed:[...done].sort((a,b)=>a-b),lastPage:playPage,drafts:scratchDrafts,exportedAt:new Date().toISOString()};downloadFile(JSON.stringify(state,null,2),'advent_progress_'+String(p.title||'calendar').replace(/[^\p{L}\p{N}]+/gu,'_').slice(0,30)+'.json','application/json');toast('Резервная копия прогресса и черновиков сохранена в JSON.');}
-async function importProgressFile(ev){try{const f=ev.target.files[0];if(!f)return;let x=JSON.parse(await f.text());if(!Array.isArray(x.completed))throw Error('В файле нет списка выполненных заданий');if(x.projectId&&x.projectId!==p.id&&!confirm('Этот JSON создан для другого календаря. Восстановление может отметить не те окошки. Продолжить только если игры содержат одинаковые задания?'))return;done=new Set(x.completed.filter(i=>Number.isInteger(i)&&i>=0&&i<p.count&&taskIsReady(p.tasks[i])));scratchDrafts=validateScratchDrafts(x.drafts);saveScratchDrafts();pendingPick=Number.isInteger(x.pendingPick)&&x.pendingPick>=0&&x.pendingPick<p.count&&taskIsReady(p.tasks[x.pendingPick])&&!done.has(x.pendingPick)?x.pendingPick:-1;savePending();storeProgress();if(Number.isInteger(x.lastPage))playPage=clamp(x.lastPage,0,totalPages()-1);storeLastPage();if(inPlayer)renderPlayer();toast('Прогресс загружен: '+done.size+' из '+p.count);}catch(e){toast('Ошибка загрузки прогресса: '+e.message);}finally{ev.target.value='';}}
-function exportPlayer(){
+async function importProgressFile(ev){try{const f=ev.target.files[0];if(!f)return;let x=JSON.parse(await f.text());if(!Array.isArray(x.completed))throw Error('В файле нет списка выполненных заданий');if(x.projectId&&x.projectId!==p.id&&!await cozyConfirm('Этот JSON создан для другого календаря. Восстановление может отметить не те окошки. Продолжить только если игры содержат одинаковые задания?'))return;done=new Set(x.completed.filter(i=>Number.isInteger(i)&&i>=0&&i<p.count&&taskIsReady(p.tasks[i])));scratchDrafts=validateScratchDrafts(x.drafts);saveScratchDrafts();pendingPick=Number.isInteger(x.pendingPick)&&x.pendingPick>=0&&x.pendingPick<p.count&&taskIsReady(p.tasks[x.pendingPick])&&!done.has(x.pendingPick)?x.pendingPick:-1;savePending();storeProgress();if(Number.isInteger(x.lastPage))playPage=clamp(x.lastPage,0,totalPages()-1);storeLastPage();if(inPlayer)renderPlayer();toast('Прогресс загружен: '+done.size+' из '+p.count);}catch(e){toast('Ошибка загрузки прогресса: '+e.message);}finally{ev.target.value='';}}
+async function exportPlayer(){
  const n=filledCount(),missing=p.count-n;
  if(missing){const ids=Array.from({length:p.count},(_,i)=>i).filter(i=>!taskIsReady(p.tasks[i])).map(i=>i+1);
-   if(!confirm(`Готово ${n} из ${p.count} заданий. Не заполнено: ${missing}.\nОкошки № ${ids.join(', ')} будут недоступны в игре и не попадут в рандомайзер.\n\nВсё равно скачать HTML?`))return;}
- const student=prompt('Для кого сохранить отдельный календарь? Имя необязательно. Например: Ваня или 5А класс.','');
+   if(!await cozyConfirm(`Готово ${n} из ${p.count} заданий. Не заполнено: ${missing}.\nОкошки № ${ids.join(', ')} будут недоступны в игре и не попадут в рандомайзер.\n\nВсё равно скачать HTML?`))return;}
+ const student=await cozyPrompt('Для кого сохранить отдельный календарь? Имя необязательно. Например: Ваня или 5А класс.','');
  if(student===null)return;
  const label=student.trim().slice(0,80);
  // Each exported game has its own unique progress namespace. Never alter the editable teacher project.
@@ -1890,7 +1923,7 @@ function renderPlayer(){
  $('#playerFullscreen').onclick=()=>document.fullscreenElement?document.exitFullscreen?.():document.documentElement.requestFullscreen?.().catch(()=>toast('Полноэкранный режим недоступен'));
  bindBackgroundMusicToolbar();
  $('#playerDownloadProgress').onclick=downloadProgress;$('#playerImportProgress').onclick=()=>$('#progressImport').click();$('#progressImport').onchange=importProgressFile;
- $('#playerReset').onclick=()=>{if(confirm('Начать этот календарь заново? Все выполненные окошки закроются, черновики очистятся. Отменить нельзя.')){scratchDrafts={};saveScratchDrafts();done.clear();pendingPick=-1;savePending();playPage=0;storeLastPage();storeProgress();renderPlayer();toast('Календарь начат заново.');}};
+ $('#playerReset').onclick=async()=>{if(await cozyConfirm('Начать этот календарь заново? Все выполненные окошки закроются, черновики очистятся. Отменить нельзя.')){scratchDrafts={};saveScratchDrafts();done.clear();pendingPick=-1;savePending();playPage=0;storeLastPage();storeProgress();renderPlayer();toast('Календарь начат заново.');}};
  $('#playerExit')?.addEventListener('click',()=>{stopBackgroundMusic();inPlayer=false;$('#playerRoot').classList.add('hidden');$('#editorRoot').classList.remove('hidden');done=readProgress();pendingPick=readPending();renderEditor();});
  renderRewardSide();
  schedulePlayerFit();
@@ -2102,7 +2135,7 @@ function openScratchpad(index){if($('#scratchWorkspace'))return;
  $('#scratchColor',el).oninput=e=>{activeScratch.pen=e.target.value;setScratchTool('pen');};
  $('#scratchThickness',el).oninput=e=>{activeScratch.thickness=Number(e.target.value);$('#scratchSizeLabel',el).textContent=e.target.value;};
  $('#scratchUndo',el).onclick=()=>{const arr=scratchDrafts[index]||[];if(!arr.length)return;arr.pop();saveScratchDrafts();redrawScratch();updateScratchButtons();};
- $('#scratchClear',el).onclick=()=>{const arr=scratchDrafts[index]||[];if(arr.length&&!confirm('Очистить все записи этого черновика?'))return;scratchDrafts[index]=[];saveScratchDrafts();redrawScratch();updateScratchButtons();};
+ $('#scratchClear',el).onclick=async()=>{const arr=scratchDrafts[index]||[];if(arr.length&&!await cozyConfirm('Очистить все записи этого черновика?'))return;scratchDrafts[index]=[];saveScratchDrafts();redrawScratch();updateScratchButtons();};
  $('#scratchFinish',el).onclick=$('#scratchClose',el).onclick=closeScratchpad;
  el.addEventListener('keydown',ev=>{if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();closeScratchpad();}if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'){ev.preventDefault();$('#scratchUndo',el).click();}});
  activeScratch.observer=new ResizeObserver(()=>requestScratchRedraw());activeScratch.observer.observe($('#scratchPaper',el));
@@ -2232,7 +2265,7 @@ function v8MergeTask(index,incoming){let old=p.tasks[index]||blankTask(index);le
 }
 function v8Dialog(content){dialog='import';$('#modalHost').innerHTML=`<div class="overlay" id="v8Overlay"><section class="dialog v8-modal" role="dialog" aria-modal="true">${content}</section></div>`;$('#v8Overlay').addEventListener('click',e=>{if(e.target.id==='v8Overlay')closeDialog();});$('#v8Close').onclick=closeDialog;}
 let v8DraftImportText='';
-function showBulkImportV8(){
+async function showBulkImportV8(){
  let body=`<div class="dialog-head"><h2>📥 Импорт вопросов списком</h2><button id="v8Close" class="dialog-close" aria-label="Закрыть">×</button></div><div class="dialog-body"><div class="v8-intro"><b>Формат для быстрой загрузки вопросов.</b> Вставьте вопросы из нейросети или своего списка: одна строка — одно задание. Знак <b>|</b> разделяет части, <b>*</b> — правильный ответ.</div>
  <div class="v8-format-grid"><div class="v8-format-item"><strong>Один верный</strong><code>Столица Франции? | Лондон | *Париж | Рим</code></div><div class="v8-format-item"><strong>Несколько верных</strong><code>Выбери чётные | *2 | 3 | *4 | 5</code></div><div class="v8-format-item"><strong>Ввод</strong><code>Вычислите \\(\\frac{1}{2}+\\frac{1}{4}\\) | \\(\\frac{3}{4}\\)</code></div><div class="v8-format-item"><strong>Верно / Неверно</strong><code>Верно / Неверно | Снег белый | верно</code></div></div>
  <details style="margin:8px 0 16px"><summary style="cursor:pointer;color:#18756c;font-size:13px;font-weight:700">Показать другие форматы: порядок, сортировка, пары, свободный ответ</summary><div class="v8-format-grid"><div class="v8-format-item"><strong>Порядок</strong><code>Порядок | Расставь по возрастанию | 1 | 2 | 3</code></div><div class="v8-format-item"><strong>Сортировка</strong><code>Сортировка | Разложи | Фрукты: яблоко, груша | Овощи: морковь, свёкла</code></div><div class="v8-format-item"><strong>Пары</strong><code>Пары | Соедини | кошка = cat | собака = dog</code></div><div class="v8-format-item"><strong>Свободный ответ</strong><code>Свободный ответ | Объясни решение | пример ответа</code></div></div><p class="v8-prompt-tip">Математические формулы поддерживают LaTeX: <code>\\frac{1}{2}</code>, <code>\\sqrt{9}</code>, <code>x^{2}</code>. Поддерживаются также <code>@баллы=10</code>, <code>@пояснение=...</code>, <code>\\|</code> внутри текста и JSON-массив вопросов.</p></details>
@@ -2245,9 +2278,9 @@ function showBulkImportV8(){
  if(a.list.length)r+=`<div class="v8-preview-scroll">${a.list.slice(0,4).map(x=>`<div>✓ ${E(x.task.prompt).slice(0,90)}</div>`).join('')}</div>`;
  if(a.list.length>max)r+='<div class="bad">Часть заданий не поместится. Выберите более раннее окошко.</div>';
  $('#v8BulkReview').innerHTML=r;};$('#v8BulkText').addEventListener('input',update);$('#v8ImportStart').addEventListener('input',update);update();
- $('#v8Apply').onclick=()=>{let a=v8Analyze($('#v8BulkText').value),start=Math.max(0,Math.min(63,(+$('#v8ImportStart').value||1)-1));if(!a.list.length){toast('Не найдено корректных заданий. Проверьте формат.');return;}if(a.list.length>64-start){toast('Не все вопросы поместятся. Укажите более раннее окошко.');return;}
-  if(a.issues.length&&!confirm(`Не удалось разобрать ${a.issues.length} строк(и). Импортировать остальные ${a.list.length}?`))return;
-  if(!confirm(`Записать ${a.list.length} заданий, начиная с окна № ${start+1}? Тексты прежних заданий в этих окошках будут заменены. Оформление и награды сохранятся.`))return;
+ $('#v8Apply').onclick=async()=>{let a=v8Analyze($('#v8BulkText').value),start=Math.max(0,Math.min(63,(+$('#v8ImportStart').value||1)-1));if(!a.list.length){toast('Не найдено корректных заданий. Проверьте формат.');return;}if(a.list.length>64-start){toast('Не все вопросы поместятся. Укажите более раннее окошко.');return;}
+  if(a.issues.length&&!await cozyConfirm(`Не удалось разобрать ${a.issues.length} строк(и). Импортировать остальные ${a.list.length}?`))return;
+  if(!await cozyConfirm(`Записать ${a.list.length} заданий, начиная с окна № ${start+1}? Тексты прежних заданий в этих окошках будут заменены. Оформление и награды сохранятся.`))return;
   a.list.forEach((item,i)=>p.tasks[start+i]=v8MergeTask(start+i,item.task));v8DraftImportText='';p.count=Math.max(p.count,start+a.list.length);sel=start;editorPage=pageOfWindow(sel);persist();closeDialog();renderEditor();const left=p.count-filledCount();toast(`Импортировано ${a.list.length}. Готово ${filledCount()} из ${p.count}. ${left?`Осталось ${left}.`:'Все задания заполнены.'}`);
  };
 }
@@ -2302,7 +2335,7 @@ function showPromptV8(){let prevInput=$('#v8BulkText')?.value||'';let body=`<div
  $('#v8Regenerate').onclick=generate;$('#v8BackToImport').onclick=showBulkImportV8;$('#v8Copy').onclick=async()=>{let ok=await v8Copy($('#v8PromptResult').value);if(ok){toast('Промпт скопирован! Вставьте его в нейросеть.');$('#v8Copy').textContent='✓ Скопировано';}else{toast('Выделите текст и нажмите Ctrl+C');$('#v8PromptResult').focus();$('#v8PromptResult').select();}};
  generate();
 }
-function v8ApplyVisualToAll(){if(!confirm(`Скопировать оформление задания № ${sel+1} (шрифт, размер, цвет и подложку) на остальные ${p.count-1} заданий? Тексты и ответы сохранятся.`))return;let t=p.tasks[sel];for(let i=0;i<p.count;i++){if(i===sel)continue;for(let key of ['font','fontSize','textColor','taskBackdrop','taskBackdropImage'])p.tasks[i][key]=t[key];}persist();renderInspector();toast('Оформление применено ко всем заданиям.');}
+async function v8ApplyVisualToAll(){if(!await cozyConfirm(`Скопировать оформление задания № ${sel+1} (шрифт, размер, цвет и подложку) на остальные ${p.count-1} заданий? Тексты и ответы сохранятся.`))return;let t=p.tasks[sel];for(let i=0;i<p.count;i++){if(i===sel)continue;for(let key of ['font','fontSize','textColor','taskBackdrop','taskBackdropImage'])p.tasks[i][key]=t[key];}persist();renderInspector();toast('Оформление применено ко всем заданиям.');}
 
 
 // v9.4: one persistent Audio object outside playerRoot, which is re-rendered at every house change.
