@@ -951,7 +951,7 @@ body{background:linear-gradient(120deg,#eef5f5,#f4f6fa 58%,#fcf7ef)}
       <div class="panel-kicker">ШАГ 1 ИЗ 3</div><h2>Настройте календарь</h2>
        <p class="panel-intro">Название, окошки и оформление — всё в одном месте.</p>
        <div class="section-eyebrow">Основное</div>
-      <label class="field"><span>Название календаря</span><input type="text" id="setTitle" maxlength="90" value="Уютный декабрь"></label>
+      <label class="field"><span>Название календаря</span><input type="text" id="setTitle" maxlength="90" value="Уютный декабрь"><small id="titleLanguageHint">Для каждого языка можно задать своё название. Переключите язык интерфейса и отредактируйте это поле.</small></label>
       <div class="field"><span>Количество окошек</span><div class="count-control"><button id="countMinus" type="button" title="Минус одно">−</button><input id="setCount" type="number" min="1" max="64" step="1" value="12"><button id="countPlus" type="button" title="Плюс одно">＋</button></div><small>От 1 до 64. Все задания сохраняются, даже если распределить их между несколькими домиками.</small></div>
       <div class="field house-capacity-block"><span>Сколько окошек разместить на одном домике?</span>
         <select id="houseCapacity" aria-label="Окошек на один домик"><option value="auto">✨ Автоподбор под фасад</option><option value="4">4 окошка</option><option value="6">6 окошек</option><option value="8">8 окошек</option><option value="10">10 окошек</option><option value="12">12 окошек</option><option value="16">16 окошек</option><option value="custom">✏️ Ввести своё количество…</option></select>
@@ -1198,16 +1198,24 @@ function refreshFillIndicators(){
   const state=taskState(p.tasks[+b.dataset.win]);b.classList.toggle('task-unfilled',state.kind!=='ready');b.classList.toggle('task-needs',state.kind==='needs');b.title=`Окошко № ${+b.dataset.win+1}. ${state.reason}`;
  });
 }
-function createProject(){return {version:8,interfaceLanguage:(()=>{try{return localStorage.getItem("cozy_advent_language")||"ru"}catch(e){return "ru"}})(),wideLayout:true,windowStyleMode:'auto',windowStyleGlobal:'wood',windowStyleOverrides:{},windowPositions:{},randomizerPositions:{},windowSize:100,windowsPerHouse:'auto',houseTheme:'village',musicMode:'default',musicData:'',musicFileName:'',musicVolume:35,windowSound:'wood',windowAudio:'',randomizer:false,randomStyle:'sack',randomSound:'bells',randomAudio:'',id:uid(),title:'Наш уютный декабрь',count:12,unlock:'free',rewardMode:'collection',puzzlePreset:'newyear1',puzzleFit:'contain',puzzleAspect:1,puzzleCustom:'',background:'',snow:true,effects:true,defaultTaskBackdrop:'preset-0',defaultTaskBackdropImage:'',tasks:Array.from({length:64},(_,i)=>blankTask(i))};}
+function createProject(){return {version:8,interfaceLanguage:(()=>{try{return localStorage.getItem("cozy_advent_language")||"ru"}catch(e){return "ru"}})(),wideLayout:true,windowStyleMode:'auto',windowStyleGlobal:'wood',windowStyleOverrides:{},windowPositions:{},randomizerPositions:{},titleTranslations:{},windowSize:100,windowsPerHouse:'auto',houseTheme:'village',musicMode:'default',musicData:'',musicFileName:'',musicVolume:35,windowSound:'wood',windowAudio:'',randomizer:false,randomStyle:'sack',randomSound:'bells',randomAudio:'',id:uid(),title:'Наш уютный декабрь',count:12,unlock:'free',rewardMode:'collection',puzzlePreset:'newyear1',puzzleFit:'contain',puzzleAspect:1,puzzleCustom:'',background:'',snow:true,effects:true,defaultTaskBackdrop:'preset-0',defaultTaskBackdropImage:'',tasks:Array.from({length:64},(_,i)=>blankTask(i))};}
 function audioOK(s){return typeof s==='string'&&/^data:audio\/(?:mpeg|mp3|wav|x-wav|ogg|webm|mp4|aac);base64,[a-z\d+/=]+$/i.test(s);}
 function musicDataOK(s){return typeof s==='string'&&/^data:(?:audio\/(?:mpeg|mp3|wav|x-wav|ogg|webm|mp4|aac|x-m4a|m4a)|video\/mp4);base64,[a-z\d+/=]+$/i.test(s);}
 function cleanProject(data){
  if(!data||typeof data!=='object')throw Error('Не найден проект');
  const p=createProject();p.interfaceLanguage=["ru","en","fr","de","zh","ko"].includes(data.interfaceLanguage)?data.interfaceLanguage:p.interfaceLanguage;p.id=/^[a-zA-Z\d_-]{3,80}$/.test(data.id)?data.id:uid();
- p.title=String(data.title||p.title).slice(0,90);p.count=clamp(parseInt(data.count,10)||12,1,64);
+ p.title=String(data.title||p.title).slice(0,90);
+  p.titleTranslations={};
+  if(data.titleTranslations&&typeof data.titleTranslations==='object'&&!Array.isArray(data.titleTranslations)){
+    for(const lang of ['en','fr','de','zh','ko']){
+      if(typeof data.titleTranslations[lang]==='string'&&data.titleTranslations[lang].trim())
+        p.titleTranslations[lang]=data.titleTranslations[lang].trim().slice(0,90);
+    }
+  }
+  p.count=clamp(parseInt(data.count,10)||12,1,64);
  p.windowsPerHouse=Number.isInteger(Number(data.windowsPerHouse))&&Number(data.windowsPerHouse)>=1&&Number(data.windowsPerHouse)<=16?Number(data.windowsPerHouse):'auto';
  p.windowSize=clamp(Number(data.windowSize)||100,70,130);p.windowPositions={};
- p.randomizerPositions={};if(data.randomizerPositions&&typeof data.randomizerPositions==='object'&&!Array.isArray(data.randomizerPositions)){for(const [key,pos] of Object.entries(data.randomizerPositions)){if(!/^(village|clay|knit|ginger|watercolor|movie|crystal|custom):(?:[1-9]|[1-5]\d|6[0-4])(?::slots(?:[1-9]|1[0-6]))?:[0-9]{1,2}$/.test(key)||!pos||typeof pos!=='object')continue;const x=Number(pos.x),y=Number(pos.y);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=84&&y>=0&&y<=74)p.randomizerPositions[key]={x:+x.toFixed(2),y:+y.toFixed(2)};}}
+ p.randomizerPositions={};if(data.randomizerPositions&&typeof data.randomizerPositions==='object'&&!Array.isArray(data.randomizerPositions)){for(const [key,pos] of Object.entries(data.randomizerPositions)){if(!(key==='all'||/^(village|clay|knit|ginger|watercolor|movie|crystal|custom):(?:[1-9]|[1-5]\d|6[0-4])(?::slots(?:[1-9]|1[0-6]))?:[0-9]{1,2}$/.test(key))||!pos||typeof pos!=='object')continue;const x=Number(pos.x),y=Number(pos.y);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=84&&y>=0&&y<=74)p.randomizerPositions[key]={x:+x.toFixed(2),y:+y.toFixed(2)};}}
  // Positions are saved separately for each house theme and window count.
  // Invalid/out-of-range imported positions are ignored safely.
  if(data.windowPositions&&typeof data.windowPositions==='object'&&!Array.isArray(data.windowPositions)){
@@ -1225,8 +1233,11 @@ function cleanProject(data){
   for(const slots of Object.values(p.windowPositions))for(const pos of Object.values(slots))pos.x=+Math.max(0,Math.min(100,50+(pos.x-50)*0.78)).toFixed(2);
   for(const pos of Object.values(p.randomizerPositions))pos.x=+Math.max(0,Math.min(84,50+(pos.x-50)*0.78)).toFixed(2);
  }
- p.wideLayout=true;
- p.unlock=data.unlock==='sequential'?'sequential':'free';p.rewardMode=data.rewardMode==='puzzle'?'puzzle':'collection';
+  p.wideLayout=true;
+  const oldBagPositions=Object.values(p.randomizerPositions);
+  const globalBagPosition=p.randomizerPositions.all||oldBagPositions[oldBagPositions.length-1];
+  p.randomizerPositions=globalBagPosition?{all:{...globalBagPosition}}:{};
+  p.unlock=data.unlock==='sequential'?'sequential':'free';p.rewardMode=data.rewardMode==='puzzle'?'puzzle':'collection';
  p.puzzlePreset=[...NEWYEAR_PUZZLE_IDS,'dinner','movie','tree','own'].includes(data.puzzlePreset)?data.puzzlePreset:'newyear1';
  p.puzzleCustom=imgOK(data.puzzleCustom)?data.puzzleCustom:'';p.puzzleFit=data.puzzleFit==='cover'?'cover':'contain';p.puzzleAspect=clamp(Number(data.puzzleAspect)||1,.55,2.6);p.background=imgOK(data.background)?data.background:'';p.houseTheme=HOUSE_IDS.includes(data.houseTheme)?data.houseTheme:'village';p.windowStyleMode=data.windowStyleMode==='global'?'global':'auto';
  p.windowStyleGlobal=WINDOW_STYLE_IDS.includes(data.windowStyleGlobal)?data.windowStyleGlobal:'wood';
@@ -1393,22 +1404,28 @@ function windowGeom(i,page){let a=layoutFor(page),j=i-page*houseSlots(),row=Math
   return {x:pos?.x??autoX,y:pos?.y??a.ys[row]??55,w:+(a.w*(p.windowSize||100)/100).toFixed(2),h:+(a.h*(p.windowSize||100)/100).toFixed(2)};}
 function windowMarkup(i,page,editor){let geo=windowGeom(i,page),ox=geo.x,oy=geo.y,ready=taskIsReady(p.tasks[i]),finished=!editor&&ready&&done.has(i),locked=!editor&&(!ready||(p.unlock==='sequential'&&!finished&&i!==nextReadyIndex()));return `<button type="button" class="window ${finished?'completed':''} ${locked?'locked':''} ${!ready?'task-unfilled':''} ${editor&&sel===i?'selected':''} ${!editor&&pendingPick===i?'random-picked':''}" data-win="${i}" data-window-style="${effectiveWindowStyle(i)}" title="${!ready?'Задание пока не заполнено':''}" aria-label="${E(`Окошко № ${i+1}${!ready?', задание не заполнено':finished?', выполнено':''}`)}" ${locked?'disabled aria-disabled="true"':''} style="left:${ox}%;top:${oy}%;width:${geo.w}%;height:${geo.h}%"><span class="window-inner"><span class="window-glass"><img alt="${E(p.tasks[i].rewardTitle)}" src="${imgFor(i)}"><span class="window-center">✨</span></span></span><span class="shutter left"></span><span class="shutter right"></span><span class="closed-doors" aria-hidden="true"><span class="door-knob"></span></span><span class="window-num">${i+1}</span><span class="snowcap"></span><span class="pine"></span></button>`;}
 const BAG_STORAGE_PREFIX='cozy_advent_bag_';
-function bagPositionKey(page){return layoutKey()+':'+page;}
-// While a number is being revealed, pin the bag where the teacher/child touched it.
-// This is temporary visual state; each house keeps its own saved drag position.
+// One project-wide position for the bag: every house has the same coordinates.
+// The former layout:page map is migrated by cleanProject() when loading older projects.
 let activeBagRevealPosition=null;
-function getBagPlacement(page){return activeBagRevealPosition||p.randomizerPositions?.[bagPositionKey(page)]||{x:2,y:65};}
-function saveBagPlacement(page,x,y){
- if(!p.randomizerPositions)p.randomizerPositions={};
- p.randomizerPositions[bagPositionKey(page)]={x:+x.toFixed(2),y:+y.toFixed(2)};
- if(activeBagRevealPosition)activeBagRevealPosition={x:+x.toFixed(2),y:+y.toFixed(2)};
+function getBagPlacement(_page){return activeBagRevealPosition||p.randomizerPositions?.all||{x:2,y:65};}
+function saveBagPlacement(_page,x,y){
+ const pos={x:+Math.max(0,Math.min(84,x)).toFixed(2),y:+Math.max(0,Math.min(74,y)).toFixed(2)};
+ p.randomizerPositions={all:pos};
+ if(activeBagRevealPosition)activeBagRevealPosition={...pos};
  if(standalone){try{localStorage.setItem(BAG_STORAGE_PREFIX+p.id,JSON.stringify(p.randomizerPositions));}catch(e){}}else persist();
 }
 function restoreGameBagPlacement(){
  if(!standalone)return;
- try{const saved=JSON.parse(localStorage.getItem(BAG_STORAGE_PREFIX+p.id)||'null');if(!saved||typeof saved!=='object')return;
- for(const [key,value] of Object.entries(saved)){if(!/^(village|clay|knit|ginger|watercolor|movie|crystal|custom):(?:[1-9]|[1-5]\d|6[0-4])(?::slots(?:4|6|8|10|12))?:[0-9]{1,2}$/.test(key))continue;
- const x=Number(value?.x),y=Number(value?.y);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=84&&y>=0&&y<=74)p.randomizerPositions[key]={x,y};}
+ try{
+  const saved=JSON.parse(localStorage.getItem(BAG_STORAGE_PREFIX+p.id)||'null');
+  if(!saved||typeof saved!=='object'||Array.isArray(saved))return;
+  // An existing standalone game's last saved location wins, even when saved in the old format.
+  const entries=Object.entries(saved).filter(([key,v])=>
+    (key==='all'||/^(village|clay|knit|ginger|watercolor|movie|crystal|custom):(?:[1-9]|[1-5]\d|6[0-4])(?::slots(?:[1-9]|1[0-6]))?:[0-9]{1,2}$/.test(key))&&
+    Number.isFinite(Number(v?.x))&&Number.isFinite(Number(v?.y))&&Number(v.x)>=0&&Number(v.x)<=84&&Number(v.y)>=0&&Number(v.y)<=74);
+  if(!entries.length)return;
+  const pos=saved.all||entries[entries.length-1][1];
+  p.randomizerPositions={all:{x:Number(pos.x),y:Number(pos.y)}};
  }catch(e){}
 }
 function bindBagMovement(scene,isEditor,action){
@@ -1435,7 +1452,7 @@ function bindBagMovement(scene,isEditor,action){
   if(!start||event.pointerId!==start.id)return;
   const moved=start.moved;start=null;station.classList.remove('bag-dragging');
   if(moved){ignoreClick=true;saveBagPlacement(isEditor?editorPage:playPage,parseFloat(station.style.left),parseFloat(station.style.top));
-   if(isEditor)toast('Мешочек перемещён. Его положение сохранено для этого домика.');
+   if(isEditor)toast('Мешочек перемещён. Его положение сохранено для всех домиков.');
    setTimeout(()=>{ignoreClick=false;},150);}
  });
  button.addEventListener('pointercancel',()=>{start=null;station.classList.remove('bag-dragging');});
@@ -1469,7 +1486,7 @@ function setCount(count){const prev=p.count;p.count=clamp(parseInt(count,10)||1,
 function renderEditor(){if(standalone)return;editorPage=clamp(editorPage,0,totalPages()-1);$('#houseThemeName').textContent=HOUSE_NAMES[HOUSE_IDS.indexOf(p.houseTheme)]||HOUSE_NAMES[0];const globalId=p.windowStyleMode==='global'?p.windowStyleGlobal:HOUSE_TO_WINDOW[p.houseTheme]||'wood';
  const overrides=Object.keys(p.windowStyleOverrides||{}).filter(i=>+i<p.count).length;
  $('#windowStyleSummary').textContent=`${p.windowStyleMode==='auto'?'Автоподбор':'Выбрано вручную'}: ${windowStyleName(globalId)}${overrides?` · ${overrides} индивидуальных`:''}`;
-$('#houseThemeDetail').textContent=p.background?'Ваш загруженный домик':(p.windowStyleMode==='auto'?'Окошки подобраны по стилю домика':'Оформление окошек выбрано вручную');$('#houseThemeThumb').src=sceneImage();$('#windowSound').value=p.windowSound;$('#randomSound').value=p.randomSound;refreshEditorMusicControls();$('#enableRandomizer').checked=p.randomizer;$('#quickRandomizer').checked=p.randomizer;$('#randomStyle').value=p.randomStyle;$('#defaultBackdropLabel').textContent=globalBackdropName();$('#defaultBackdropThumb').src=backdropSource({taskBackdrop:'inherit'})||TASK_BACKDROPS[0];$('#setTitle').value=p.title;$('#setCount').value=p.count;const hc=String(p.windowsPerHouse||'auto'),presets=['4','6','8','10','12','16'];$('#houseCapacity').value=hc==='auto'?'auto':presets.includes(hc)?hc:'custom';$('#houseCapacityCustomWrap').hidden=$('#houseCapacity').value!=='custom';$('#houseCapacityCustom').value=hc!=='auto'?hc:'11';$('#houseCapacityHint').textContent=`Для выбранного домика рекомендуем ${houseSlotRecommendation()} окошек на сцену. Сейчас: ${houseSlots()} на домик → ${totalPages()} ${totalPages()===1?'домик':totalPages()<5?'домика':'домиков'} для ${p.count} заданий.`;$('#windowSize').value=p.windowSize||100;$('#windowSizeValue').textContent=(p.windowSize||100)+'%';$('#setUnlock').value=p.unlock;$('#setRewardMode').value=p.rewardMode;$('#setPuzzlePreset').value=p.puzzlePreset;updatePuzzleEditorV93();$('#setSnow').checked=p.snow;$('#setEffects').checked=p.effects;$('#editorHeading').textContent=p.title;$('#editorPage').textContent=`${editorPage+1} / ${totalPages()}`;$('#editorPrev').disabled=editorPage===0;$('#editorNext').disabled=editorPage===totalPages()-1;$('#countBadge').textContent=`🪟 ${p.count} окошек · ${houseSlots()} на домик · ${totalPages()} сцен(ы)`;$('#pageWindowRange').textContent=pageWindowDescription(editorPage)+' · перетаскивайте окошки свободно.';$('#editorScene').dataset.houseTheme=p.houseTheme;$('#editorScene').style.aspectRatio=sceneAspectRatio();$('#editorScene').innerHTML=sceneMarkup(editorPage,true);syncSceneRatio($('#editorScene'),false);bindEditorWindows();bindBagMovement($('#editorScene'),true,previewRandomNumber);renderInspector();refreshFillIndicators();}
+$('#houseThemeDetail').textContent=p.background?'Ваш загруженный домик':(p.windowStyleMode==='auto'?'Окошки подобраны по стилю домика':'Оформление окошек выбрано вручную');$('#houseThemeThumb').src=sceneImage();$('#windowSound').value=p.windowSound;$('#randomSound').value=p.randomSound;refreshEditorMusicControls();$('#enableRandomizer').checked=p.randomizer;$('#quickRandomizer').checked=p.randomizer;$('#randomStyle').value=p.randomStyle;$('#defaultBackdropLabel').textContent=globalBackdropName();$('#defaultBackdropThumb').src=backdropSource({taskBackdrop:'inherit'})||TASK_BACKDROPS[0];$('#setTitle').value=cozyProjectTitle();$('#setCount').value=p.count;const hc=String(p.windowsPerHouse||'auto'),presets=['4','6','8','10','12','16'];$('#houseCapacity').value=hc==='auto'?'auto':presets.includes(hc)?hc:'custom';$('#houseCapacityCustomWrap').hidden=$('#houseCapacity').value!=='custom';$('#houseCapacityCustom').value=hc!=='auto'?hc:'11';$('#houseCapacityHint').textContent=`Для выбранного домика рекомендуем ${houseSlotRecommendation()} окошек на сцену. Сейчас: ${houseSlots()} на домик → ${totalPages()} ${totalPages()===1?'домик':totalPages()<5?'домика':'домиков'} для ${p.count} заданий.`;$('#windowSize').value=p.windowSize||100;$('#windowSizeValue').textContent=(p.windowSize||100)+'%';$('#setUnlock').value=p.unlock;$('#setRewardMode').value=p.rewardMode;$('#setPuzzlePreset').value=p.puzzlePreset;updatePuzzleEditorV93();$('#setSnow').checked=p.snow;$('#setEffects').checked=p.effects;$('#editorHeading').textContent=cozyProjectTitle();$('#editorPage').textContent=`${editorPage+1} / ${totalPages()}`;$('#editorPrev').disabled=editorPage===0;$('#editorNext').disabled=editorPage===totalPages()-1;$('#countBadge').textContent=`🪟 ${p.count} окошек · ${houseSlots()} на домик · ${totalPages()} сцен(ы)`;$('#pageWindowRange').textContent=pageWindowDescription(editorPage)+' · перетаскивайте окошки свободно.';$('#editorScene').dataset.houseTheme=p.houseTheme;$('#editorScene').style.aspectRatio=sceneAspectRatio();$('#editorScene').innerHTML=sceneMarkup(editorPage,true);syncSceneRatio($('#editorScene'),false);bindEditorWindows();bindBagMovement($('#editorScene'),true,previewRandomNumber);renderInspector();refreshFillIndicators();}
 
 let previewRollTimer=null;
 function previewRandomNumber(){
@@ -1841,8 +1858,19 @@ function setupSettingsNavigation(){
 }
 function startEditor(){activeBagRevealPosition=null;standalone=false;setupSettingsNavigation();try{let saved=localStorage.getItem(STORAGE_PROJECT)||localStorage.getItem('cozy_advent_v4_project');p=saved?cleanProject(JSON.parse(saved)):createProject();}catch(e){p=createProject();}done=readProgress();renderEditor();bindEditor();persist();}
 function bindEditor(){
- $('#resetBagPlacement')?.addEventListener('click',()=>{activeBagRevealPosition=null;if(!p.randomizerPositions)p.randomizerPositions={};delete p.randomizerPositions[bagPositionKey(editorPage)];persist();renderEditor();toast('Мешочек вернулся на исходное место для этого домика.');});
- $('#setTitle').addEventListener('input',e=>{p.title=e.target.value.slice(0,90);$('#editorHeading').textContent=p.title||'Зимняя деревня';persist();});$('#setCount').addEventListener('change',e=>setCount(e.target.value));
+ $('#resetBagPlacement')?.addEventListener('click',()=>{activeBagRevealPosition=null;if(!p.randomizerPositions)p.randomizerPositions={};p.randomizerPositions={};persist();renderEditor();toast('Мешочек вернулся на исходное место на всех домиках.');});
+ $('#setTitle').addEventListener('input',e=>{
+   const lang=cozyLanguage(),title=e.target.value.slice(0,90);
+   if(lang==='ru'){
+     if(p.title!==title){p.title=title;p.titleTranslations={};}
+   }else{
+     if(!p.titleTranslations)p.titleTranslations={};
+     if(title.trim())p.titleTranslations[lang]=title.trim();
+     else delete p.titleTranslations[lang];
+   }
+   $('#editorHeading').textContent=title||cozyProjectTitle()||'Зимняя деревня';
+   persist();
+  });$('#setCount').addEventListener('change',e=>setCount(e.target.value));
  $('#houseCapacity').addEventListener('change',e=>{const selected=e.target.value;if(selected==='custom'){const num=Number($('#houseCapacityCustom').value);p.windowsPerHouse=Number.isInteger(num)&&num>=1&&num<=16&&!['4','6','8','10','12','16'].includes(String(num))?num:11;}else p.windowsPerHouse=selected==='auto'?'auto':Number(selected);editorPage=pageOfWindow(sel);persist();renderEditor();toast(`На одном домике: ${houseSlots()} окошек. Всего домиков: ${totalPages()}.`);});
  $('#houseCapacityCustom').addEventListener('change',e=>{const num=Number(e.target.value);if(!Number.isInteger(num)||num<1||num>16){e.target.value=String(houseSlots());toast('Введите целое количество от 1 до 16.');return;}p.windowsPerHouse=num;editorPage=pageOfWindow(sel);persist();renderEditor();toast(`Выбрано ${num} окошек на домик.`);});$('#windowSize').addEventListener('input',e=>{p.windowSize=clamp(Number(e.target.value),70,130);$('#windowSizeValue').textContent=p.windowSize+'%';persist();const page=editorPage;onPage(page).forEach(i=>{const el=$('#editorScene').querySelector(`[data-win=\"${i}\"]`);if(el){const geo=windowGeom(i,page);el.style.width=geo.w+'%';el.style.height=geo.h+'%';}});});$('#windowSize').addEventListener('change',()=>renderEditor());$('#countMinus').onclick=()=>setCount(p.count-1);$('#countPlus').onclick=()=>setCount(p.count+1);
  $('#setUnlock').onchange=e=>{p.unlock=e.target.value;persist();};$('#setRewardMode').onchange=e=>{p.rewardMode=e.target.value;persist();updatePuzzleEditorV93();};$('#setPuzzlePreset').onchange=e=>{p.puzzlePreset=e.target.value;persist();updatePuzzleEditorV93();};$('#setSnow').onchange=e=>{p.snow=e.target.checked;persist();renderEditor();};$('#setEffects').onchange=e=>{p.effects=e.target.checked;persist();};
@@ -1897,7 +1925,8 @@ async function exportPlayer(){
  if(student===null)return;
  const label=student.trim().slice(0,80);
  // Each exported game has its own unique progress namespace. Never alter the editable teacher project.
- const game={...p,id:uid(),title:label?`${p.title} — ${label}`:p.title};
+ const game={...p,id:uid(),title:label?`${p.title} — ${label}`:p.title,
+   titleTranslations:Object.fromEntries(Object.entries(p.titleTranslations||{}).map(([lang,value])=>[lang,label?`${value} — ${label}`:value]))};
  const doc=document.documentElement.cloneNode(true);
  doc.querySelector('body').dataset.mode='player';
  doc.querySelector('#editorRoot')?.remove();
@@ -1906,7 +1935,7 @@ async function exportPlayer(){
  doc.querySelector('#modalHost').innerHTML='';
  doc.querySelector('#toastHost').innerHTML='';
  doc.querySelector('#projectSeed').textContent=JSON.stringify(game).replace(/</g,'\\u003c');
- doc.querySelector('title').textContent=game.title+' — интерактивный календарь';
+ doc.querySelector('title').textContent=cozyProjectTitle(cozyLanguage(),game)+' — '+cozyGameTitleSuffix(cozyLanguage());
  const safeName=(label||p.title||'calendar').replace(/[<>:"/\\|?*\x00-\x1f]/g,'').trim().replace(/\s+/g,'_').slice(0,45)||'calendar';
  const filename=`advent_${safeName}_${game.id.slice(-6)}.html`;
  downloadFile('<!DOCTYPE html>\n'+doc.outerHTML,filename,'text/html;charset=utf-8');
@@ -1945,7 +1974,7 @@ function renderPlayer(){
  if(standalone)storeLastPage();
  let n=done.size, host=$('#playerRoot');const ready=filledCount();
  const saveLabel=standalone?(storageIsAvailable()?'● Автосохранение на этом компьютере':'⚠ Автосохранение недоступно'):'● Предпросмотр игры';
- host.innerHTML=`<header class="player-head"><div><div class="player-title">🏡 ${E(p.title)}</div><div class="player-sub">${p.rewardMode==='puzzle'?'Открывайте окошки и постепенно собирайте общую зимнюю картину!':'Открывайте окошки и собирайте коллекцию уютных зимних историй!'}</div></div><div class="player-tools"><span class="progress-badge">${n} / ${p.count} выполнено · ${ready} готово</span><span id="playerSaveStatus" class="player-save-status" title="Автосохранение работает в этом браузере. Для другого браузера скачайте JSON прогресса и восстановите его там.">${saveLabel}</span>${p.musicMode==='off'?'':`<div class="background-music-toolbar" aria-label="Музыкальное сопровождение"><button type="button" id="bgMusicToggle" class="background-music-toggle" aria-pressed="false" title="Включить или выключить фоновую музыку">♫ Музыка</button><label class="background-music-level"><span class="sr-only-music">Громкость фоновой музыки</span><input type="range" id="bgMusicVolume" min="0" max="100" step="5" value="${backgroundMusicVolume}" aria-label="Громкость фоновой музыки"><span id="bgMusicVolumeLabel">${backgroundMusicVolume}%</span></label><span id="bgMusicStatus" class="background-music-status" aria-live="polite"></span></div>`}<button class="btn" id="playerFullscreen">⛶ На весь экран</button><button class="btn" id="playerDownloadProgress">💾 Сохранить прогресс</button><button class="btn" id="playerImportProgress">📂 Восстановить прогресс</button><button class="btn" id="playerReset">↻ Сбросить</button>${!standalone?'<button class="btn" id="playerExit">✕ Редактор</button>':''}</div></header>
+ host.innerHTML=`<header class="player-head"><div><div class="player-title">🏡 ${E(cozyProjectTitle())}</div><div class="player-sub">${p.rewardMode==='puzzle'?'Открывайте окошки и постепенно собирайте общую зимнюю картину!':'Открывайте окошки и собирайте коллекцию уютных зимних историй!'}</div></div><div class="player-tools"><span class="progress-badge">${n} / ${p.count} выполнено · ${ready} готово</span><span id="playerSaveStatus" class="player-save-status" title="Автосохранение работает в этом браузере. Для другого браузера скачайте JSON прогресса и восстановите его там.">${saveLabel}</span>${p.musicMode==='off'?'':`<div class="background-music-toolbar" aria-label="Музыкальное сопровождение"><button type="button" id="bgMusicToggle" class="background-music-toggle" aria-pressed="false" title="Включить или выключить фоновую музыку">♫ Музыка</button><label class="background-music-level"><span class="sr-only-music">Громкость фоновой музыки</span><input type="range" id="bgMusicVolume" min="0" max="100" step="5" value="${backgroundMusicVolume}" aria-label="Громкость фоновой музыки"><span id="bgMusicVolumeLabel">${backgroundMusicVolume}%</span></label><span id="bgMusicStatus" class="background-music-status" aria-live="polite"></span></div>`}<button class="btn" id="playerFullscreen">⛶ На весь экран</button><button class="btn" id="playerDownloadProgress">💾 Сохранить прогресс</button><button class="btn" id="playerImportProgress">📂 Восстановить прогресс</button><button class="btn" id="playerReset">↻ Сбросить</button>${!standalone?'<button class="btn" id="playerExit">✕ Редактор</button>':''}</div></header>
  <div class="player-layout"><div class="player-main"><div class="player-scene-frame"><div id="playerScene" class="scene player-scene"></div><nav class="player-page-nav" aria-label="Переключение домиков"><button type="button" id="playPrev" aria-label="Предыдущий домик" title="Предыдущий домик">❮ <span>Назад</span></button><div class="house-current">🏠 Домик ${playPage+1} из ${totalPages()}</div><button type="button" id="playNext" aria-label="Следующий домик" title="Следующий домик"><span>Дальше</span> ❯</button></nav></div></div><aside class="reward-side" id="rewardSide"></aside></div>
  <div class="fixed-house-bar" aria-label="Переход между домиками"><button id="fixedPrev" type="button" ${playPage===0?'disabled':''}>❮</button><span>Домик ${playPage+1} / ${totalPages()}</span><button id="fixedNext" type="button" ${playPage===totalPages()-1?'disabled':''}>❯</button></div>
  <p class="player-footer"><a href="https://shkatulka.sistema-math.ru/" target="_blank" rel="noopener noreferrer" class="author-site-player">Шкатулка математических интерактивов</a><span aria-hidden="true"> · </span>Уже выполненные окошки сохраняют уютные сюжеты. Не заполненные учителем задания недоступны, мешочек их пропускает. Прогресс сохраняется в браузере. Для переноса на другое устройство используйте JSON.</p>`;
@@ -2714,6 +2743,49 @@ function cozyInitSelectUI() {
 
 cozyInitSelectUI();
 /* Version 11.7 — embedded interface localization (works offline). */
+
+// The title is project content, not interface text; translate safe built-in titles
+// and allow custom translations edited in the title field for each language.
+const COZY_BUILTIN_TITLES={
+ 'Наш уютный дом':{en:'Our Cozy Home',fr:'Notre maison douillette',de:'Unser gemütliches Zuhause',zh:'我们温馨的家',ko:'우리의 아늑한 집'},
+ 'Уютный дом':{en:'Cozy Home',fr:'Maison douillette',de:'Gemütliches Zuhause',zh:'温馨小家',ko:'아늑한 집'},
+ 'Наш уютный домик':{en:'Our Cozy Little Home',fr:'Notre petite maison douillette',de:'Unser gemütliches Häuschen',zh:'我们温馨的小屋',ko:'우리의 아늑한 작은 집'},
+ 'Наш уютный декабрь':{en:'Our Cozy December',fr:'Notre doux décembre',de:'Unser gemütlicher Dezember',zh:'我们的温馨十二月',ko:'우리의 포근한 12월'},
+ 'Уютный декабрь':{en:'Cozy December',fr:'Décembre chaleureux',de:'Gemütlicher Dezember',zh:'温馨十二月',ko:'포근한 12월'},
+ 'Зимняя деревня':{en:'Winter Village',fr:"Village d’hiver",de:'Winterdorf',zh:'冬日村庄',ko:'겨울 마을'}
+};
+function cozyProjectTitle(lang=cozyLanguage(),project=p){
+ const raw=String(project?.title||'');
+ if(lang==='ru')return raw;
+ const configured=project?.titleTranslations?.[lang];
+ if(typeof configured==='string'&&configured.trim())return configured.trim();
+ // A recipient's label is kept unchanged while the calendar's default name is translated.
+ const match=/^(.*?)(\s+—\s+.*)?$/.exec(raw);
+ const base=(match?.[1]||raw).trim(),suffix=match?.[2]||'';
+ const key=Object.keys(COZY_BUILTIN_TITLES).find(k=>k.toLocaleLowerCase('ru')===base.toLocaleLowerCase('ru'));
+ return key?(COZY_BUILTIN_TITLES[key][lang]||base)+suffix:raw;
+}
+function cozyGameTitleSuffix(lang){return ({ru:'интерактивный календарь',en:'interactive calendar',fr:'calendrier interactif',de:'interaktiver Kalender',zh:'互动日历',ko:'인터랙티브 달력'})[lang]||'интерактивный календарь';}
+const COZY_TITLE_HINTS={
+ ru:'Можно задать своё название для каждого языка: переключите язык интерфейса и отредактируйте это поле.',
+ en:'You can enter a title for each language: switch languages and edit this field.',
+ fr:'Vous pouvez saisir un titre pour chaque langue : changez de langue et modifiez ce champ.',
+ de:'Sie können für jede Sprache einen Titel eingeben: Sprache wechseln und dieses Feld bearbeiten.',
+ zh:'可以为每种语言设置标题：切换界面语言后编辑此处。',
+ ko:'언어별 제목을 지정할 수 있습니다. 언어를 전환한 뒤 이 칸을 수정하세요.'
+};
+function cozyRefreshTitle(){
+ if(typeof p==='undefined'||!p)return;
+ const lang=cozyLanguage(),localized=cozyProjectTitle(lang);
+ const heading=document.getElementById('editorHeading');if(heading&&heading.textContent!==localized)heading.textContent=localized;
+ const input=document.getElementById('setTitle');
+ if(input&&document.activeElement!==input)input.value=localized;
+ const hint=document.getElementById('titleLanguageHint');if(hint&&hint.textContent!==(COZY_TITLE_HINTS[lang]||COZY_TITLE_HINTS.ru))hint.textContent=COZY_TITLE_HINTS[lang]||COZY_TITLE_HINTS.ru;
+ const playerHeading=document.querySelector('#playerRoot .player-title');
+ if(playerHeading&&playerHeading.textContent!=='🏡 '+localized)playerHeading.textContent='🏡 '+localized;
+ if(typeof standalone!=='undefined'&&standalone)document.title=localized+' — '+cozyGameTitleSuffix(lang);
+}
+
 const COZY_UI_LANGS = ['ru','en','fr','de','zh','ko'];
 const COZY_UI_LANG_LABELS = [
   ['ru','🇷🇺 Русский'], ['en','🇬🇧 English'], ['fr','🇫🇷 Français'],
@@ -2935,6 +3007,7 @@ function cozyApplyInterfaceLanguage(){
     const lang=cozyLanguage();
     document.documentElement.lang=(lang==='zh'?'zh-CN':lang);
     cozyEnsureLanguageSwitchers();
+    cozyRefreshTitle();
     for(const id of ['editorRoot','playerRoot','modalHost','toastHost']){
       const host=document.getElementById(id);if(!host)continue;
       const walker=document.createTreeWalker(host,NodeFilter.SHOW_TEXT);
